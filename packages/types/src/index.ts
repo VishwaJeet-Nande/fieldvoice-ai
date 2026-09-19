@@ -4,12 +4,12 @@ export type {
   CustomerHealth,
   CustomerStatus,
   CustomerType,
-} from './customer'
+} from './customer.js'
 
 export type {
   Visit,
   VisitStatus,
-} from './visit'
+} from './visit.js'
 
 export type {
   ActionItem,
@@ -20,11 +20,11 @@ export type {
   SentimentPoint,
   SentimentTrend,
   VoiceIntelligence,
-} from './intelligence'
+} from './intelligence.js'
 
 export type {
   Alert,
   AlertSeverity,
   AlertStatus,
   AlertType,
-} from './alert'
+} from './alert.js'

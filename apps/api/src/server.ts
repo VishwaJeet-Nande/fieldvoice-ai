@@ -7,6 +7,7 @@ import { healthRoutes } from './routes/health.js'
 import prismaPlugin from './plugins/prisma.js'
 import { customerRoutes } from './routes/customers.js'
 import { visitRoutes } from './routes/visits.js'
+import { voiceRoutes } from './routes/voice.js'
 
 async function buildServer() {
   const app = Fastify({
@@ -27,7 +28,9 @@ async function buildServer() {
   })
   
   await app.register(visitRoutes, { prefix: '/api' })
-  
+
+  await app.register(voiceRoutes, { prefix: '/api' })
+
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error)
 
