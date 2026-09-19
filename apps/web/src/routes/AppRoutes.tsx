@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '../layouts/AppLayout'
+import { Alerts } from '../pages/Alerts'
 import { Customers } from '../pages/Customers'
 import { CustomerDetails } from '../pages/CustomerDetails'
 import { Dashboard } from '../pages/Dashboard'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
+import { VoiceIntelligence } from '../pages/VoiceIntelligence'
 
 export function AppRoutes() {
   return (
@@ -55,13 +57,7 @@ export function AppRoutes() {
 
         <Route
           path="/intelligence"
-          element={
-            <PlaceholderPage
-              eyebrow="INTELLIGENCE"
-              title="Voice Intelligence"
-              description="Explore structured business intelligence generated from field conversations."
-            />
-          }
+          element={<VoiceIntelligence />}
         />
 
         <Route
@@ -86,16 +82,7 @@ export function AppRoutes() {
           }
         />
 
-        <Route
-          path="/alerts"
-          element={
-            <PlaceholderPage
-              eyebrow="INTELLIGENCE"
-              title="Alerts Center"
-              description="Review and manage business-critical alerts detected from field intelligence."
-            />
-          }
-        />
+        <Route path="/alerts" element={<Alerts />} />
 
         <Route
           path="/pipeline"

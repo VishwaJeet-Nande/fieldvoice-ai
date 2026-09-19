@@ -1,0 +1,375 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  EXECUTIVE
+  MANAGER
+  REP
+}
+
+enum CustomerHealth {
+  HEALTHY
+  WATCH
+  AT_RISK
+  CRITICAL
+}
+
+enum VisitStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum VoiceRecordStatus {
+  UPLOADED
+  TRANSCRIBING
+  ANALYZING
+  COMPLETED
+  FAILED
+}
+
+enum SentimentLabel {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum SentimentTrend {
+  IMPROVING
+  STABLE
+  DECLINING
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum AlertType {
+  CRITICAL_FEEDBACK
+  COMPETITIVE_PRICING
+  SENTIMENT_CHANGE
+  OPPORTUNITY
+  FOLLOW_UP
+  CUSTOMER_RISK
+}
+
+// ============================================================
+// ORGANIZATION
+// ============================================================
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  customers      Customer[]
+  visits         Visit[]
+  voiceRecords   VoiceRecord[]
+  intelligence   VoiceIntelligence[]
+  alerts         Alert[]
+  activityEvents ActivityEvent[]
+
+  @@index([slug])
+}
+
+// ============================================================
+// USER
+// ============================================================
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  email          String
+  role           UserRole @default(REP)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  ownedCustomers Customer[]      @relation("CustomerOwner")
+  visits         Visit[]         @relation("VisitRep")
+  voiceRecords   VoiceRecord[]   @relation("VoiceRecordedBy")
+  assignedAlerts Alert[]         @relation("AlertAssignee")
+  activityEvents ActivityEvent[] @relation("ActivityActor")
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([organizationId, role])
+}
+
+// ============================================================
+// CUSTOMER
+// ============================================================
+
+model Customer {
+  id             String  @id @default(cuid())
+  organizationId String
+  ownerId        String?
+
+  name         String
+  externalCode String?
+  industry     String?
+  segment      String?
+  city         String?
+  state        String?
+  country      String? @default("India")
+
+  health      CustomerHealth @default(HEALTHY)
+  annualValue Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?        @relation("CustomerOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  visits         Visit[]
+  voiceRecords   VoiceRecord[]
+  intelligence   VoiceIntelligence[]
+  alerts         Alert[]
+  activityEvents ActivityEvent[]
+
+  @@index([organizationId])
+  @@index([organizationId, health])
+  @@index([ownerId])
+  @@index([name])
+}
+
+// ============================================================
+// VISIT
+// ============================================================
+
+model Visit {
+  id             String @id @default(cuid())
+  organizationId String
+  customerId     String
+  repId          String
+
+  status VisitStatus @default(PLANNED)
+
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  endedAt     DateTime?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rep          User         @relation("VisitRep", fields: [repId], references: [id], onDelete: Restrict)
+
+  voiceRecords   VoiceRecord[]
+  intelligence   VoiceIntelligence[]
+  alerts         Alert[]             @relation("AlertSourceVisit")
+  activityEvents ActivityEvent[]
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([repId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+// ============================================================
+// VOICE RECORD
+// ============================================================
+
+model VoiceRecord {
+  id             String @id @default(cuid())
+  organizationId String
+  visitId        String
+  customerId     String
+  recordedById   String
+
+  status VoiceRecordStatus @default(UPLOADED)
+
+  storageKey      String?
+  fileName        String?
+  mimeType        String?
+  durationSeconds Int?
+
+  transcript   String?
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  visit        Visit        @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  recordedBy   User         @relation("VoiceRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  intelligence   VoiceIntelligence?
+  activityEvents ActivityEvent[]
+
+  @@index([organizationId])
+  @@index([visitId])
+  @@index([customerId])
+  @@index([recordedById])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================
+// VOICE INTELLIGENCE
+// ============================================================
+
+model VoiceIntelligence {
+  id String @id @default(cuid())
+
+  organizationId String
+  voiceRecordId  String @unique
+  visitId        String
+  customerId     String
+
+  transcript String
+  summary    String
+  oneLiner   String
+
+  sentiment      SentimentLabel
+  sentimentScore Float
+  sentimentTrend SentimentTrend
+
+  aspects     Json
+  topics      String[]
+  competitors String[]
+
+  risks         Json
+  opportunities Json
+  actionItems   Json
+
+  followUpRequired      Boolean   @default(false)
+  suggestedFollowUpDate DateTime?
+
+  confidence  Float
+  processedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  voiceRecord  VoiceRecord  @relation(fields: [voiceRecordId], references: [id], onDelete: Cascade)
+  visit        Visit        @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  alerts Alert[] @relation("AlertSourceIntelligence")
+
+  @@index([organizationId])
+  @@index([visitId])
+  @@index([customerId])
+  @@index([sentiment])
+  @@index([processedAt])
+}
+
+// ============================================================
+// ALERT
+// ============================================================
+
+model Alert {
+  id String @id @default(cuid())
+
+  organizationId String
+  customerId     String
+
+  sourceVisitId             String?
+  sourceVoiceIntelligenceId String?
+  assignedToId              String?
+
+  type     AlertType
+  severity AlertSeverity
+  status   AlertStatus   @default(OPEN)
+
+  title       String
+  description String
+
+  createdAt      DateTime  @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  sourceVisit             Visit?             @relation("AlertSourceVisit", fields: [sourceVisitId], references: [id], onDelete: SetNull)
+  sourceVoiceIntelligence VoiceIntelligence? @relation("AlertSourceIntelligence", fields: [sourceVoiceIntelligenceId], references: [id], onDelete: SetNull)
+
+  assignedTo User? @relation("AlertAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  activityEvents ActivityEvent[]
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([severity])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@index([assignedToId])
+}
+
+// ============================================================
+// ACTIVITY EVENT
+// ============================================================
+
+model ActivityEvent {
+  id String @id @default(cuid())
+
+  organizationId String
+
+  actorId       String?
+  customerId    String?
+  visitId       String?
+  voiceRecordId String?
+  alertId       String?
+
+  type        String
+  title       String
+  description String
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  actor       User?        @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  visit       Visit?       @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  voiceRecord VoiceRecord? @relation(fields: [voiceRecordId], references: [id], onDelete: SetNull)
+  alert       Alert?       @relation(fields: [alertId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([visitId])
+  @@index([voiceRecordId])
+  @@index([alertId])
+  @@index([actorId])
+}
