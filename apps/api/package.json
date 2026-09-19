@@ -16,6 +16,7 @@
   "dependencies": {
     "@fastify/cors": "^11.0.0",
     "@fastify/sensible": "^6.0.0",
+    "@fieldvoice/types": "workspace:*",
     "@prisma/client": "^6.19.3",
     "dotenv": "^17.2.2",
     "fastify": "^5.6.0",
