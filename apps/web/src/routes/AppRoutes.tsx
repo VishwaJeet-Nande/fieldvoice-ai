@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '../layouts/AppLayout'
 import { Alerts } from '../pages/Alerts'
-import { Customers } from '../pages/Customers'
+import Customers from '../pages/Customers'
 import { CustomerDetails } from '../pages/CustomerDetails'
 import { Dashboard } from '../pages/Dashboard'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
@@ -11,11 +11,20 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/"
+          element={<Navigate to="/dashboard" replace />}
+        />
 
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route
+          path="/dashboard"
+          element={<Dashboard />}
+        />
 
-        <Route path="/customers" element={<Customers />} />
+        <Route
+          path="/customers"
+          element={<Customers />}
+        />
 
         <Route
           path="/customers/:customerId"
@@ -82,7 +91,10 @@ export function AppRoutes() {
           }
         />
 
-        <Route path="/alerts" element={<Alerts />} />
+        <Route
+          path="/alerts"
+          element={<Alerts />}
+        />
 
         <Route
           path="/pipeline"
