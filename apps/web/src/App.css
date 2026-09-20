@@ -402,13 +402,14 @@
 
 .fv-dashboard-grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
   gap: 14px;
   margin-top: 14px;
+  align-items: start;
 }
 
 .fv-dashboard-card {
-  min-height: 300px;
+  min-height: 0;
 }
 
 .fv-section-heading {
@@ -475,7 +476,7 @@
 
 .fv-sentiment-placeholder {
   position: relative;
-  min-height: 210px;
+  min-height: 190px;
 }
 
 .fv-sentiment-score {
@@ -491,7 +492,7 @@
   bottom: 28px;
   left: 0;
   display: flex;
-  height: 100px;
+  height: 120px;
   align-items: flex-end;
   gap: 7px;
   padding-top: 12px;
@@ -582,8 +583,8 @@
 .fv-coverage {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  min-height: 200px;
+  justify-content: flex-start;
+  min-height: 0;
 }
 
 .fv-coverage > div:first-child {
