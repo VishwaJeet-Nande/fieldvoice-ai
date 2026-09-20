@@ -6,6 +6,7 @@ import { CustomerDetails } from '../pages/CustomerDetails'
 import { Dashboard } from '../pages/Dashboard'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
 import { VoiceIntelligence } from '../pages/VoiceIntelligence'
+import { LiveActivity } from '../pages/LiveActivity'
 
 export function AppRoutes() {
   return (
@@ -33,13 +34,7 @@ export function AppRoutes() {
 
         <Route
           path="/activity"
-          element={
-            <PlaceholderPage
-              eyebrow="FIELD OPERATIONS"
-              title="Live Activity"
-              description="Monitor field visits, voice submissions, and real-time team activity."
-            />
-          }
+          element={<LiveActivity />}
         />
 
         <Route

@@ -6,6 +6,7 @@ import type {
 
 import type { IntelligenceProvider } from '../providers/intelligence/intelligence.provider.js'
 import type { SpeechProvider } from '../providers/speech/speech.provider.js'
+import { AlertService } from './alert.service.js'
 
 export interface CreateVoiceRecordInput {
   recordedById: string
@@ -20,11 +21,15 @@ function toJsonInput(value: unknown): Prisma.InputJsonValue {
 }
 
 export class VoiceService {
+  private readonly alertService: AlertService
+
   constructor(
     private readonly prisma: PrismaClient,
     private readonly speechProvider: SpeechProvider,
     private readonly intelligenceProvider: IntelligenceProvider,
-  ) {}
+  ) {
+    this.alertService = new AlertService(prisma)
+  }
 
   async createVoiceRecord(
     organizationId: string,
@@ -205,6 +210,34 @@ export class VoiceService {
           update: intelligenceData,
         })
 
+      const generatedAlerts =
+        await this.alertService.generateAlerts({
+          organizationId,
+          customerId: voiceRecord.visit.customerId,
+          visitId: voiceRecord.visit.id,
+          voiceIntelligenceId: savedIntelligence.id,
+
+          sentiment: intelligence.sentiment,
+          sentimentScore: intelligence.sentimentScore,
+          sentimentTrend: intelligence.sentimentTrend,
+
+          topics: intelligence.topics,
+          competitors: intelligence.competitors,
+
+          risks: intelligence.risks,
+          opportunities: intelligence.opportunities,
+          actionItems: intelligence.actionItems,
+
+          followUpRequired: intelligence.followUpRequired,
+
+          suggestedFollowUpDate:
+            intelligence.suggestedFollowUpDate
+              ? new Date(
+                  intelligence.suggestedFollowUpDate,
+                )
+              : null,
+        })
+
       await this.updateStatus(
         organizationId,
         voiceRecordId,
@@ -217,6 +250,7 @@ export class VoiceService {
           voiceRecordId,
         ),
         intelligence: savedIntelligence,
+        alerts: generatedAlerts,
       }
     } catch (error) {
       await this.updateStatus(

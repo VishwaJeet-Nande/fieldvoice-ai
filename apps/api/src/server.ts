@@ -3,33 +3,49 @@ import sensible from '@fastify/sensible'
 
 import { env } from './config/env.js'
 import { registerCors } from './plugins/cors.js'
-import { healthRoutes } from './routes/health.js'
 import prismaPlugin from './plugins/prisma.js'
+
+import { healthRoutes } from './routes/health.js'
 import { customerRoutes } from './routes/customers.js'
 import { visitRoutes } from './routes/visits.js'
 import { voiceRoutes } from './routes/voice.js'
+import { alertRoutes } from './routes/alerts.js'
+import { activityRoutes } from './routes/activity.js'
+
+import { startSocketServer } from './realtime/socket.js'
 
 async function buildServer() {
-  const app = Fastify({
-    logger: true
-  })
+  const app = Fastify({ logger: true })
 
   await app.register(sensible)
-  await app.register(prismaPlugin)
 
   await registerCors(app)
 
+  await app.register(prismaPlugin)
+
   await app.register(healthRoutes, {
-    prefix: '/api'
+    prefix: '/api',
   })
 
   await app.register(customerRoutes, {
-    prefix: '/api'
+    prefix: '/api',
   })
-  
-  await app.register(visitRoutes, { prefix: '/api' })
 
-  await app.register(voiceRoutes, { prefix: '/api' })
+  await app.register(visitRoutes, {
+    prefix: '/api',
+  })
+
+  await app.register(voiceRoutes, {
+    prefix: '/api',
+  })
+
+  await app.register(alertRoutes, {
+    prefix: '/api',
+  })
+
+  await app.register(activityRoutes, {
+    prefix: '/api',
+  })
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error)
@@ -62,8 +78,8 @@ async function buildServer() {
     return reply.status(statusCode).send({
       error: {
         code,
-        message
-      }
+        message,
+      },
     })
   })
 
@@ -76,8 +92,14 @@ async function start() {
   try {
     await app.listen({
       port: env.API_PORT,
-      host: '0.0.0.0'
+      host: '0.0.0.0',
     })
+
+    startSocketServer(env.SOCKET_PORT)
+
+    app.log.info(
+      `API server listening on ${env.API_PORT}`,
+    )
   } catch (error) {
     app.log.error(error)
     process.exit(1)
