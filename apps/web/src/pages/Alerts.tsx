@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getAlerts } from '../lib/api/alerts'
+import {
+  getAlerts,
+  patchAlert,
+  type AlertStatus,
+} from '../lib/api/alerts'
 
 type AlertFilter =
   | 'all'
@@ -65,9 +69,7 @@ function normalizeStatus(value: string) {
 }
 
 function normalizeType(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/_/g, '-')
+  return value.toLowerCase().replace(/_/g, '-')
 }
 
 function formatDate(value: string) {
@@ -121,7 +123,8 @@ function mapAlert(alert: ApiAlert): UiAlert {
   return {
     id: alert.id,
     customerId: alert.customerId,
-    customerName: alert.customer?.name ?? 'Unknown customer',
+    customerName:
+      alert.customer?.name ?? 'Unknown customer',
     sourceVoiceIntelligenceId:
       alert.sourceVoiceIntelligenceId,
     type: normalizeType(alert.type),
@@ -134,15 +137,48 @@ function mapAlert(alert: ApiAlert): UiAlert {
   }
 }
 
+function getNextStatus(
+  status: string,
+): AlertStatus | null {
+  switch (status) {
+    case 'open':
+      return 'ACKNOWLEDGED'
+    case 'acknowledged':
+      return 'IN_PROGRESS'
+    case 'in-progress':
+      return 'RESOLVED'
+    case 'resolved':
+      return 'OPEN'
+    default:
+      return null
+  }
+}
+
+function getActionLabel(status: string) {
+  switch (status) {
+    case 'open':
+      return 'Acknowledge'
+    case 'acknowledged':
+      return 'Start work'
+    case 'in-progress':
+      return 'Resolve'
+    case 'resolved':
+      return 'Reopen'
+    default:
+      return null
+  }
+}
+
 export function Alerts() {
   const [alerts, setAlerts] = useState<UiAlert[]>([])
   const [filter, setFilter] =
     useState<AlertFilter>('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(
-    null,
-  )
+  const [error, setError] =
+    useState<string | null>(null)
+  const [updatingAlertId, setUpdatingAlertId] =
+    useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -179,6 +215,43 @@ export function Alerts() {
       cancelled = true
     }
   }, [])
+
+  async function handleStatusChange(
+    alert: UiAlert,
+  ) {
+    const nextStatus = getNextStatus(alert.status)
+
+    if (!nextStatus) return
+
+    setUpdatingAlertId(alert.id)
+    setError(null)
+
+    try {
+      const response =
+        await patchAlert<ApiAlert>(
+          alert.id,
+          nextStatus,
+        )
+
+      const updatedAlert = mapAlert(response.data)
+
+      setAlerts((currentAlerts) =>
+        currentAlerts.map((currentAlert) =>
+          currentAlert.id === updatedAlert.id
+            ? updatedAlert
+            : currentAlert,
+        ),
+      )
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to update alert.',
+      )
+    } finally {
+      setUpdatingAlertId(null)
+    }
+  }
 
   const filteredAlerts = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -233,10 +306,13 @@ export function Alerts() {
       <div className="alerts-page">
         <div className="fv-page-header alerts-page-header">
           <div>
-            <p className="fv-eyebrow">INTELLIGENCE</p>
+            <p className="fv-eyebrow">
+              INTELLIGENCE
+            </p>
             <h1>Alerts Center</h1>
             <p>
-              Loading intelligence signals from the field.
+              Loading intelligence signals from the
+              field.
             </p>
           </div>
         </div>
@@ -244,23 +320,27 @@ export function Alerts() {
         <div className="alerts-empty">
           <strong>Loading alerts...</strong>
           <span>
-            Fetching the latest signals from FieldVoice.
+            Fetching the latest signals from
+            FieldVoice.
           </span>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  if (error && alerts.length === 0) {
     return (
       <div className="alerts-page">
         <div className="fv-page-header alerts-page-header">
           <div>
-            <p className="fv-eyebrow">INTELLIGENCE</p>
+            <p className="fv-eyebrow">
+              INTELLIGENCE
+            </p>
             <h1>Alerts Center</h1>
             <p>
-              Business-critical signals detected from field
-              conversations and customer intelligence.
+              Business-critical signals detected
+              from field conversations and customer
+              intelligence.
             </p>
           </div>
         </div>
@@ -277,13 +357,16 @@ export function Alerts() {
     <div className="alerts-page">
       <div className="fv-page-header alerts-page-header">
         <div>
-          <p className="fv-eyebrow">INTELLIGENCE</p>
+          <p className="fv-eyebrow">
+            INTELLIGENCE
+          </p>
 
           <h1>Alerts Center</h1>
 
           <p>
-            Business-critical signals detected from field
-            conversations and customer intelligence.
+            Business-critical signals detected from
+            field conversations and customer
+            intelligence.
           </p>
         </div>
 
@@ -293,6 +376,12 @@ export function Alerts() {
         </div>
       </div>
 
+      {error && (
+        <div className="alerts-inline-error">
+          {error}
+        </div>
+      )}
+
       <div className="alerts-summary-grid">
         <button
           className={`alerts-summary-card ${
@@ -301,9 +390,7 @@ export function Alerts() {
           onClick={() => setFilter('critical')}
         >
           <span>Critical</span>
-
           <strong>{criticalCount}</strong>
-
           <small>Immediate attention</small>
         </button>
 
@@ -314,9 +401,7 @@ export function Alerts() {
           onClick={() => setFilter('high')}
         >
           <span>High priority</span>
-
           <strong>{highCount}</strong>
-
           <small>Requires action</small>
         </button>
 
@@ -327,9 +412,7 @@ export function Alerts() {
           onClick={() => setFilter('open')}
         >
           <span>Open</span>
-
           <strong>{openCount}</strong>
-
           <small>Awaiting response</small>
         </button>
 
@@ -340,9 +423,7 @@ export function Alerts() {
           onClick={() => setFilter('resolved')}
         >
           <span>Resolved</span>
-
           <strong>{resolvedCount}</strong>
-
           <small>Closed signals</small>
         </button>
       </div>
@@ -393,101 +474,134 @@ export function Alerts() {
             <strong>No alerts found</strong>
 
             <span>
-              Try changing the current filter or search
-              query.
+              Try changing the current filter or
+              search query.
             </span>
           </div>
         ) : (
-          filteredAlerts.map((alert) => (
-            <article
-              className={`alert-card alert-card-${alert.severity}`}
-              key={alert.id}
-            >
-              <div className="alert-card-accent" />
+          filteredAlerts.map((alert) => {
+            const nextStatus = getNextStatus(
+              alert.status,
+            )
+            const actionLabel =
+              getActionLabel(alert.status)
+            const isUpdating =
+              updatingAlertId === alert.id
 
-              <div className="alert-card-main">
-                <div className="alert-card-header">
-                  <div>
-                    <div className="alert-title-row">
-                      <span
-                        className={severityClass(
-                          alert.severity,
-                        )}
-                      >
-                        <span className="alert-severity-dot" />
+            return (
+              <article
+                className={`alert-card alert-card-${alert.severity}`}
+                key={alert.id}
+              >
+                <div className="alert-card-accent" />
 
-                        {severityLabel(alert.severity)}
-                      </span>
+                <div className="alert-card-main">
+                  <div className="alert-card-header">
+                    <div>
+                      <div className="alert-title-row">
+                        <span
+                          className={severityClass(
+                            alert.severity,
+                          )}
+                        >
+                          <span className="alert-severity-dot" />
+                          {severityLabel(
+                            alert.severity,
+                          )}
+                        </span>
 
-                      <span
-                        className={statusClass(
-                          alert.status,
-                        )}
-                      >
-                        {statusLabel(alert.status)}
-                      </span>
+                        <span
+                          className={statusClass(
+                            alert.status,
+                          )}
+                        >
+                          {statusLabel(
+                            alert.status,
+                          )}
+                        </span>
 
-                      <span className="alert-type">
-                        {typeLabel(alert.type)}
-                      </span>
+                        <span className="alert-type">
+                          {typeLabel(alert.type)}
+                        </span>
+                      </div>
+
+                      <h2>{alert.title}</h2>
+
+                      <p className="alert-customer-meta">
+                        {alert.customerName}
+                        {' · '}
+                        {formatDate(alert.createdAt)}
+                        {' · '}
+                        {formatTime(alert.createdAt)}
+                      </p>
                     </div>
 
-                    <h2>{alert.title}</h2>
-
-                    <p className="alert-customer-meta">
-                      {alert.customerName}
-                      {' · '}
-                      {formatDate(alert.createdAt)}
-                      {' · '}
+                    <div className="alert-time">
                       {formatTime(alert.createdAt)}
-                    </p>
+                    </div>
                   </div>
 
-                  <div className="alert-time">
-                    {formatTime(alert.createdAt)}
-                  </div>
-                </div>
+                  <div className="alert-description">
+                    <span className="alert-label">
+                      AI SIGNAL
+                    </span>
 
-                <div className="alert-description">
-                  <span className="alert-label">
-                    AI SIGNAL
-                  </span>
-
-                  <p>{alert.description}</p>
-                </div>
-
-                <div className="alert-card-footer">
-                  <div className="alert-source">
-                    {alert.sourceVoiceIntelligenceId ? (
-                      <span>
-                        <strong>Source:</strong>{' '}
-                        Voice intelligence
-                      </span>
-                    ) : (
-                      <span>
-                        <strong>Source:</strong>{' '}
-                        Field activity
-                      </span>
-                    )}
-
-                    {alert.assignedTo && (
-                      <span>
-                        <strong>Assigned:</strong>{' '}
-                        {alert.assignedTo}
-                      </span>
-                    )}
+                    <p>{alert.description}</p>
                   </div>
 
-                  <Link
-                    className="alert-customer-link"
-                    to={`/customers/${alert.customerId}`}
-                  >
-                    View customer intelligence →
-                  </Link>
+                  <div className="alert-card-footer">
+                    <div className="alert-source">
+                      {alert.sourceVoiceIntelligenceId ? (
+                        <span>
+                          <strong>Source:</strong>{' '}
+                          Voice intelligence
+                        </span>
+                      ) : (
+                        <span>
+                          <strong>Source:</strong>{' '}
+                          Field activity
+                        </span>
+                      )}
+
+                      {alert.assignedTo && (
+                        <span>
+                          <strong>Assigned:</strong>{' '}
+                          {alert.assignedTo}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="alert-actions">
+                      {nextStatus &&
+                        actionLabel && (
+                          <button
+                            type="button"
+                            className="alert-action-button"
+                            disabled={isUpdating}
+                            onClick={() =>
+                              void handleStatusChange(
+                                alert,
+                              )
+                            }
+                          >
+                            {isUpdating
+                              ? 'Updating...'
+                              : actionLabel}
+                          </button>
+                        )}
+
+                      <Link
+                        className="alert-customer-link"
+                        to={`/customers/${alert.customerId}`}
+                      >
+                        View customer intelligence →
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))
+              </article>
+            )
+          })
         )}
       </div>
     </div>
