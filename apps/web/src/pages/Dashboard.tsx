@@ -250,10 +250,10 @@ export function Dashboard() {
   }, [])
 
   const metrics = useMemo(() => {
-    const completedVisits = activities.filter((activity) =>
-      activity.type
-        .toLowerCase()
-        .includes('visit'),
+    const completedVisits = activities.filter(
+       (activity) =>
+         activity.type.toLowerCase() ===
+         'visit.completed',
     ).length
 
     const voiceEvents = activities.filter((activity) =>
